@@ -1,0 +1,46 @@
+name: Continuous Release Build
+
+on:
+  push:
+    branches:
+      - main  # 每次推送到 main 分支时触发
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.25'  # 指定您需要的 Go 版本
+
+      - name: Install UPX
+        run: sudo apt-get update && sudo apt-get install -y upx
+
+      - name: Build binaries
+        run: make all
+
+      - name: Generate version tag
+        id: version
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "version=commit-$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "Using version: commit-$SHORT_SHA"
+
+      - name: Create prerelease
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            bin/pickit-windows.exe
+            bin/pickit-linux
+          tag_name: ${{ steps.version.outputs.version }}
+          name: "Prerelease build (${{ steps.version.outputs.version }})"
+          body: |
+            Auto-generated prerelease build from commit ${{ github.sha }}
+            Built with GitHub Actions at ${{ github.run_id }}
+          prerelease: true  # 标记为预发布版本
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
