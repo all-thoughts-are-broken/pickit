@@ -1,9 +1,9 @@
-name: Release Build
+name: Continuous Release Build
 
 on:
   push:
-    tags:
-      - 'v*'  # 触发条件：当推送 v 开头的标签时（例如 v1.0.0）
+    branches:
+      - main  # 每次推送到 main 分支时触发
 
 jobs:
   build-release:
@@ -23,16 +23,24 @@ jobs:
       - name: Build binaries
         run: make all
 
-      - name: Create release
+      - name: Generate version tag
+        id: version
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "version=commit-$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "Using version: commit-$SHORT_SHA"
+
+      - name: Create prerelease
         uses: softprops/action-gh-release@v1
         with:
           files: |
             bin/pickit-windows.exe
             bin/pickit-linux
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          tag_name: ${{ steps.version.outputs.version }}
+          name: "Prerelease build (${{ steps.version.outputs.version }})"
           body: |
-            Auto-generated release for ${{ github.ref_name }}
-            Built with GitHub Actions
+            Auto-generated prerelease build from commit ${{ github.sha }}
+            Built with GitHub Actions at ${{ github.run_id }}
+          prerelease: true  # 标记为预发布版本
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
